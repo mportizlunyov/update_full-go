@@ -1,6 +1,6 @@
 // Written by Mikhail P. Ortiz-Lunyov
 //
-// Version 0.0.0.8-alpha
+// Version 0.0.0.9-beta
 //
 // This script is licensed under the GNU Public License v3 (GPLv3)
 // This script is cross platform.
