@@ -1,6 +1,6 @@
 // Written by Mikhail P. Ortiz-Lunyov
 //
-// Version 0.0.0.7-alpha
+// Version 0.0.0.9-beta
 //
 // This script is licensed under the GNU Public License v3 (GPLv3)
 // This script is cross platform.
@@ -25,36 +25,37 @@ import (
 const OS_TYPE string = runtime.GOOS
 
 // // Version numbers and names
-const DEV_CYCLE string = "-alpha"
-const SHORT_VERSION_NUM string = "0.0.0.7"
-const VERSION_NAME string = "June 26th 2024"
+const DEV_CYCLE string = "-beta"
+const SHORT_VERSION_NUM string = "0.0.0.9"
+const VERSION_NAME string = "June 28th 2024"
 const LONG_VERSION_NUM string = "v" + SHORT_VERSION_NUM + DEV_CYCLE + " (" + VERSION_NAME + ")"
 
 // // Number of package managers per type
-const Of_PKG_NUM int = 15
+const OF_PKG_NUM int = 15
 const AL_PKG_NUM int = 4
 
 // // String array of package managers
-var OFFICIAL_PKG_MANAGERS [Of_PKG_NUM]string = [Of_PKG_NUM]string{
+var OFFICIAL_PKG_MANAGERS [OF_PKG_NUM]string = [OF_PKG_NUM]string{
 	// Linux
-	"apt",                  // 0 [Verified] Debian
-	"dnf",                  // 1 [] Red-Hat
-	"transactional-update", // 2 [Verified*]OpenSUSE immutable
-	"zypper",               // 3 [Verified**]OpenSUSE
-	"yum",                  // 4 [] Legacy Red-Hat
-	"rpm-ostree",           // 5 [] Red-Hat immutable
-	"apk",                  // 6 [] Alpine Linux
-	"swupd",                // 7 [*] Clear Linux
-	"pacman",               // 8 [] Arch Linux
-	"Pkg_add",              // 9 [] OpenBSD
+	"apt",                  // 0  [Verified] Debian
+	"dnf",                  // 1  [Verified] Red-Hat
+	"transactional-update", // 2  [Verified*]OpenSUSE immutable
+	"zypper",               // 3  [Verified**]OpenSUSE
+	"yum",                  // 4  [Verified] Legacy Red-Hat
+	"rpm-ostree",           // 5  [Verified] Red-Hat immutable
+	"apk",                  // 6  [Verified] Alpine Linux
+	"swupd",                // 7  [Verified] Clear Linux
+	"pacman",               // 8  [] Arch Linux
+	"Pkg_add",              // 9  [] OpenBSD
 	"pkg",                  // 10 [] FreeBSD
 	"eopkg",                // 11 [] Solus Linux
 	"slackpkg",             // 12 [] Slackware Linux
 	"xpbs",                 // 13 [] Void Linux
-	// Windows
-	"winget", // 14 [Verified***] Winget
 	// *Currently does not work on non-root execution
 	// **Is NOT detected on non-root execution on OpenSUSE MicroOS, fails due to transactional-update
+
+	// Windows
+	"winget", // 14 [Verified***] Winget
 	// ***Does not work on first-time execution. Needs "y" piped in first ["y" | winget upgrade --all]
 	// ***Additionally, non-admin execution requires user to be present to approve admin prompts
 }
@@ -105,6 +106,7 @@ func PrintFlags(verbosity int) {
 	fmt.Println("--alt-only   | -ao : Only updates from alternative package managers (see definition)")
 	fmt.Println("--custom-domain | -cd : Adds an additional domain to test on top of raw.githubusercontent.com")
 	fmt.Println("--official-only | -oo : Only updates from official package managers (see definition)")
+	fmt.Println("--yum-update | -yu : Uses Yum over Dnf, if exists or is applicable")
 }
 
 // Prints Help statement
@@ -137,6 +139,51 @@ func PrintWarranty() {
 	fmt.Println("COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.")
 }
 
+// Prints values of variables
+func DebugVariablePrint(varName string, isBool bool, boolVar bool, intVar int, stringVar string, errVar error, byteVar []byte, response *http.Response) {
+	switch debugFlag {
+	// End method early to not spend any more time
+	case false:
+		return
+	case true:
+		fmt.Print("DEBUG= ")
+		fmt.Print(varName + ": ")
+		// Define what to print in event of different variables
+		switch isBool {
+		case true:
+		default:
+			fmt.Print(boolVar)
+		}
+		switch intVar {
+		case -1:
+		default:
+			fmt.Print(intVar)
+		}
+		switch stringVar {
+		case "null":
+		default:
+			fmt.Print(stringVar)
+		}
+		switch errVar {
+		case nil:
+		default:
+			fmt.Println(errVar)
+		}
+		switch byteVar {
+		case nil:
+		default:
+			fmt.Print(byteVar)
+		}
+		switch response {
+		case nil:
+		default:
+			fmt.Print(response)
+		}
+
+		fmt.Println()
+	}
+}
+
 // // Extracts Checksum-Checker and runs it
 // func ChecksumCheck() {
 // }
@@ -144,12 +191,9 @@ func PrintWarranty() {
 // Method to send a GET request to confirm internet connection
 func UseGetRequest(domain string, errChan chan error) error {
 	response, err := http.Get("https://" + domain)
-	// Print output, if requested
-	switch debugFlag {
-	case true:
-		fmt.Println("DEBUG=", response)
-		fmt.Println("DEBUG=", err)
-	}
+	// Print DEBUG statements, if applicable
+	DebugVariablePrint("response", false, false, -1, "null", nil, nil, response)
+	DebugVariablePrint("err", false, false, -1, "null", err, nil, nil)
 	// If successgul, returns nil
 	return err
 }
@@ -198,8 +242,7 @@ func PkgManagerActions(pkgNum int, official bool) ([][]string, int, int) {
 			// Set actions
 			returnSlices[0][0] = "update"
 			returnSlices[1][0] = "dist-upgrade"
-			returnSlices[2][0] = "-f"
-			returnSlices[2][1] = "install"
+			returnSlices[2] = []string{"-f", "install"}
 			returnSlices[3][0] = "autoremove"
 			returnSlices[4][0] = "autoclean"
 
@@ -238,8 +281,7 @@ func PkgManagerActions(pkgNum int, official bool) ([][]string, int, int) {
 			returnSlices = ReturnSliceCreator(commandsAmount, tokenCount)
 			// Set actions
 			returnSlices[0][0] = "cancel"
-			returnSlices[1][0] = "upgrade"
-			returnSlices[1][1] = "--check"
+			returnSlices[1] = []string{"upgrade", "--check"}
 			returnSlices[2][0] = "upgrade"
 		// Apk
 		case 6:
@@ -277,8 +319,7 @@ func PkgManagerActions(pkgNum int, official bool) ([][]string, int, int) {
 			returnSlices[1][0] = "upgrade"
 			returnSlices[2][0] = "autoremove"
 			returnSlices[3][0] = "clean"
-			returnSlices[4][0] = "audit"
-			returnSlices[4][1] = "-F"
+			returnSlices[4] = []string{"audit", "-F"}
 		// Solus Linux
 		case 11:
 			commandsAmount = 2
@@ -369,10 +410,7 @@ func ExecutePkgManagers(pkgNum int, official bool, manFlag bool) {
 	pkgManActions, actionCount, tokenCount := PkgManagerActions(pkgNum, official)
 
 	// DEBUG statement to see if official manager is used
-	switch debugFlag {
-	case true:
-		fmt.Println("DEBUG= Official:", official)
-	}
+	DebugVariablePrint("official", true, official, -1, "null", nil, nil, nil)
 
 	// // Iterate, adding command arguments as needed
 	for i := 0; i < actionCount; i++ {
@@ -429,21 +467,15 @@ func ExecutePkgManagers(pkgNum int, official bool, manFlag bool) {
 					case 0: // update
 						finalActionSlice = finalActionSlice[:len(finalActionSlice)-1]
 					}
-				// transactional-update Immutable package manager
-				case 2:
-					finalActionSlice = finalActionSlice[:len(finalActionSlice)-1]
 				// Zypper package manager
 				case 3:
 					switch i {
-					case 0: // list-updates
-						fallthrough
-					case 1: // patch-check
-						fallthrough
-					case 4: // patch
+					case 0, 1, 4: // list-updates
 						finalActionSlice = finalActionSlice[:len(finalActionSlice)-1]
 					}
-				// Winget package manager
-				case 14:
+				// transactional-update Immutable package manager
+				case 2, 5, 6, 14:
+					// finalActionSlice = finalActionSlice[:len(finalActionSlice)-1]
 					finalActionSlice = finalActionSlice[:len(finalActionSlice)-1]
 				}
 			// Alternative package managers
@@ -463,13 +495,9 @@ func ExecutePkgManagers(pkgNum int, official bool, manFlag bool) {
 		}
 
 		// DEBUG statement to check critical variables
-		switch debugFlag {
-		case true:
-			fmt.Println()
-			fmt.Println("DEBUG= rootUse: " + rootUse)
-			fmt.Println("DEBUG= manualResponse: " + finalActionSlice[len(finalActionSlice)-1])
-			fmt.Println("DEBUG= Slice length is:", len(finalActionSlice))
-		}
+		DebugVariablePrint("rootUse", false, false, -1, rootUse, nil, nil, nil)
+		DebugVariablePrint("manualResponse", false, false, -1, finalActionSlice[len(finalActionSlice)-1], nil, nil, nil)
+		DebugVariablePrint("Slice LENGTH", false, false, len(finalActionSlice), "null", nil, nil, nil)
 
 		// Execute commands, depending on rootUse
 		switch rootUse {
@@ -490,80 +518,130 @@ func ExecutePkgManagers(pkgNum int, official bool, manFlag bool) {
 	}
 }
 
-// Method to check for existance of package managers
-func CheckPkgManagers(aoFlag bool, ooFlag bool, manFlag bool) error {
-	// DEBUG statement to print aoFlag Status
-	switch debugFlag {
+// Method to check for specific package manager
+func PkgManCheck(pkgNum int, official bool) bool {
+	// Initialise variables
+	var stdout []byte
+	var err error
+	// First, check if official or not
+	switch official {
 	case true:
-		fmt.Println("DEBUG= AOFlag:", aoFlag)
-		fmt.Println("DEBUG= OOFlag:", ooFlag)
+		stdout, err = exec.Command(OFFICIAL_PKG_MANAGERS[pkgNum], "--help").Output()
+	case false:
+		stdout, err = exec.Command(ALTERNATIVE_PKG_MANAGERS[pkgNum], "--help").Output()
+	}
+	// Return true or false based off of result
+	switch err {
+	case nil:
+		switch official {
+		case true:
+			DebugVariablePrint("FOUND PACKAGE MANAGER", false, false, -1, OFFICIAL_PKG_MANAGERS[pkgNum], nil, nil, nil)
+		case false:
+			DebugVariablePrint("FOUND PACKAGE MANAGER", false, false, -1, ALTERNATIVE_PKG_MANAGERS[pkgNum], nil, nil, nil)
+		}
+		return true
+	default:
+		DebugVariablePrint("err", false, false, -1, "null", err, nil, nil)
+		DebugVariablePrint("stdout", false, false, -1, string(stdout), nil, nil, nil)
+		return false
+	}
+}
+
+// Method to check for existance of package managers
+func PkgManBegin(aoFlag bool, ooFlag bool, manFlag bool, yFlag bool) error {
+	// DEBUG statement to print parameter Statuses
+	DebugVariablePrint("AOFLAG", true, aoFlag, -1, "null", nil, nil, nil)
+	DebugVariablePrint("OOFlag", true, ooFlag, -1, "null", nil, nil, nil)
+	DebugVariablePrint("MANFLAG", true, manFlag, -1, "null", nil, nil, nil)
+	DebugVariablePrint("YUMFLAG", true, yFlag, -1, "null", nil, nil, nil)
+
+	// Initialise varibles
+	var typeCheck int = 0
+	var typeToIterate int = OF_PKG_NUM
+	// var pkgLoop int
+	var officialPkgMan bool = true
+
+	// Change default values if aoFlag is active
+	switch aoFlag {
+	case true:
+		typeCheck = 1
+		officialPkgMan = false
+		typeToIterate = AL_PKG_NUM
 	}
 
-	// First, loop through official package managers (if enabled)
-	switch aoFlag {
-	case false:
-		offManLoop := 0
-		for i := offManLoop; i < Of_PKG_NUM+1; i++ {
+	// Loop through package managers, official first, then alternative
+	for i := typeCheck; i < 2; i++ {
+		// // DEBUG statement to print i status
+		DebugVariablePrint("i", false, false, i, "null", nil, nil, nil)
+		// pkgLoop = 0
+		for i2 := 0; i2 < typeToIterate+1; i2++ {
+			// // DEBUG statement to print i2 status
+			DebugVariablePrint("i2", false, false, i2, "null", nil, nil, nil)
 			// Use specific actions for different managers, when applicable
-			switch i {
-			// In case of missing official package manager
-			case Of_PKG_NUM:
-				// TODO: Review if this should be treated as an error
-				return errors.New("missing official package manager")
+			switch i2 {
+			// In case of missing official package manager, return error
+			case typeToIterate:
+				if !officialPkgMan && aoFlag {
+					// TODO: Figure out system of returning an error in event of all alternative package managers attempted,
+					//  but was forced by -ao flag.
+					// return errors.New("missing alternative package managers, forced by -ao flag")
+				} else if officialPkgMan {
+					return errors.New("missing official package manager")
+				}
 			default:
-				stdout, err := exec.Command(OFFICIAL_PKG_MANAGERS[i], "--help").Output()
-				switch err {
-				case nil:
-					offManLoop = i // Set specific package manager number
-					i = Of_PKG_NUM // End loop early
-				default:
-					switch debugFlag {
+				result := PkgManCheck(i2, officialPkgMan)
+				switch result {
+				case true:
+					// Add exception for Yum, if Dnf exists
+					switch i2 {
+					case 1:
+						switch yFlag {
+						case true:
+							// Check if YUM exists
+							result := PkgManCheck(4, officialPkgMan)
+							switch result {
+							case true:
+								DebugVariablePrint("USING YUM over DNF", false, false, 01, "null", nil, nil, nil)
+								i2 = 4
+							case false:
+								fmt.Println("-yu / --yum-update flag used, but YUM does NOT exist")
+								fmt.Println("Using DNF instead")
+							}
+						}
+					}
+
+					// Execute package managers
+					fmt.Print("\t* Using package manager [")
+					switch officialPkgMan {
 					case true:
-						fmt.Println("DEBUG= " + OFFICIAL_PKG_MANAGERS[i] + " not found")
-						fmt.Println("DEBUG=", err)
-						fmt.Println("DEBUG= " + string(stdout)) // Debugging
+						fmt.Print(OFFICIAL_PKG_MANAGERS[i2])
+					case false:
+						fmt.Print(ALTERNATIVE_PKG_MANAGERS[i2])
+					}
+					fmt.Println("] on " + OS_TYPE)
+					ExecutePkgManagers(i2, officialPkgMan, manFlag)
+
+					// If official package manager, break loop after execution
+					switch officialPkgMan {
+					case true:
+						i2 = typeToIterate + 1
 					}
 				}
 			}
 		}
-		// Run official package manager
-		fmt.Println("\t* Official Package manager [" + OFFICIAL_PKG_MANAGERS[offManLoop] + "] detected on " + OS_TYPE)
-		ExecutePkgManagers(offManLoop, true, manFlag)
-	}
 
-	// Then, loop through alternative package managers
-	switch ooFlag {
-	case false:
-		AltManLoop := 0
-		for i := AltManLoop; i < AL_PKG_NUM+1; i++ {
-			switch i {
-			case AL_PKG_NUM:
-				// Check if error needs to be thrown, o otherwise break out of the loop if no alternative package manager is found
-				switch aoFlag {
-				case true:
-					return errors.New("missing alternative package managers, forced via -ao flag")
-				default:
-					return nil
-				}
+		// Define conditions for next iteration
+		switch typeCheck {
+		case 0:
+			switch ooFlag {
+			case true:
+				// End loop before checking alternative package managers
+				i = 2
 			default:
-				stdout, err := exec.Command(ALTERNATIVE_PKG_MANAGERS[i], "--help").Output()
-				switch err {
-				case nil:
-					AltManLoop = i // Set specific package manager number
-					i = AL_PKG_NUM // End loop early
-				default:
-					switch debugFlag {
-					case true:
-						fmt.Println("DEBUG= " + ALTERNATIVE_PKG_MANAGERS[i] + " not found")
-						fmt.Println("DEBUG=", err)
-						fmt.Println("DEBUG= " + string(stdout)) // Debugging
-					}
-					continue // Continue in order to not run the package manager
-				}
+				// Prepare for alternative package managers
+				officialPkgMan = false
+				typeToIterate = AL_PKG_NUM
 			}
-			// Run alternative package manager. inside of the loop
-			fmt.Println("\t* Alternative Package manager [" + ALTERNATIVE_PKG_MANAGERS[AltManLoop] + "] detected on " + OS_TYPE)
-			ExecutePkgManagers(AltManLoop, false, manFlag)
 		}
 	}
 
@@ -571,13 +649,16 @@ func CheckPkgManagers(aoFlag bool, ooFlag bool, manFlag bool) error {
 	return nil
 }
 
-// Define actions to take
+// Define actions to take based on flags
 func ActionsForFlags(aoFlag bool, ooFlag bool, cdFlag string) error {
+	// Initialise variables
 	var err error
+
 	// Check if aoFlag and ooFlag are both true
 	if aoFlag && ooFlag {
 		return errors.New("incompatible arguments [-ao && -oo]")
 	}
+
 	// Begin network test
 	// // Create a new channel that funnels errors
 	errChan := make(chan error, 2)
@@ -586,7 +667,7 @@ func ActionsForFlags(aoFlag bool, ooFlag bool, cdFlag string) error {
 	case "N/A":
 		NetworkTest("raw.githubusercontent.com", errChan)
 		if err = <-errChan; err != nil {
-			fmt.Println("!!Error when testing domain [raw.githubusercontent.com]")
+			fmt.Println("!!Error when testing domain [raw.githubusercontent.com]...")
 			return err
 		} else {
 			fmt.Println("* Network test with domain [raw.githubusercontent.com]  successful!")
@@ -646,11 +727,8 @@ func IsExecutorRoot(username string) (string, error) {
 				switch string(stdout) {
 				case "":
 					fmt.Println("* no sudo detected..")
-					switch debugFlag {
-					case true:
-						fmt.Println("DEBUG= " + string(stdout))
-						fmt.Println("DEBUG=", err)
-					}
+					DebugVariablePrint("stdout", false, false, -1, string(stdout), nil, nil, nil)
+					DebugVariablePrint("err", false, false, -1, "null", err, nil, nil)
 				default:
 					fmt.Println("\t* User " + username + " has sudo permissions, continueing...")
 					return "sudo", nil
@@ -668,11 +746,8 @@ func IsExecutorRoot(username string) (string, error) {
 				switch string(stdout) {
 				case "":
 					fmt.Println("* no doas detected..")
-					switch debugFlag {
-					case true:
-						fmt.Println("DEBUG= " + string(stdout))
-						fmt.Println("DEBUG=", err)
-					}
+					DebugVariablePrint("stdout", false, false, -1, string(stdout), nil, nil, nil)
+					DebugVariablePrint("err", false, false, -1, "null", err, nil, nil)
 				default:
 					fmt.Println("\t* User " + username + " has doas permissions, continueing...")
 					return "doas", nil
@@ -723,9 +798,12 @@ func main() {
 	// // // -oo / --disable-alt-managers
 	officialOnlyShort := flag.Bool("oo", false, "Skip updates from any unofficial package managers")
 	officialOnlyLong := flag.Bool("official-only", false, "See above")
+	// // // -yu / --yum-update
+	yumUpdateShort := flag.Bool("yu", false, "Uses legacy Yum instead of Dnf on Red-Hat Linux systems")
+	yumUpdateLong := flag.Bool("yum-update", false, "See above")
 	// // // -h / --help
 	helpShort := flag.Bool("h", false, "Prints help message")
-	helpLong := flag.Bool("help", false, "see above")
+	helpLong := flag.Bool("help", false, "See above")
 	// // // -v / --version
 	versionShort := flag.Bool("v", false, "Print version and quit script")
 	versionLong := flag.Bool("version", false, "See above")
@@ -744,13 +822,14 @@ func main() {
 	allManualFlag := *allManualShort || *allManualLong
 	altOnlyFlag := *altOnlyShort || *altOnlyLong
 	officialOnlyFlag := *officialOnlyShort || *officialOnlyLong
+	yumUpdateFlag := *yumUpdateShort || *yumUpdateLong
 	helpFlag := *helpShort || *helpLong
 	warrantyFlag := *warrantyShort || *warrantyLong
 	versionFlag := *versionShort || *versionLong
 	flagsFlag := *flagsShort || *flagsLong
-	// if *customDomainLong != *customDomainShort &&  {}
 	customDomainFlag := *customDomainShort // TODO: Figure out combination system
 	debugFlag = *debugShort || *debugLong
+
 	// // // If informational flags are run (-h, -v, -f, -w), act on those first
 	if helpFlag || versionFlag || warrantyFlag || flagsFlag {
 		// Run versionFlag
@@ -814,11 +893,12 @@ func main() {
 	}
 
 	// Run package manager checker/runner
-	pkgManErr := CheckPkgManagers(altOnlyFlag, officialOnlyFlag, allManualFlag)
+	pkgManErr := PkgManBegin(altOnlyFlag, officialOnlyFlag, allManualFlag, yumUpdateFlag)
 	switch pkgManErr {
 	case nil:
 	default:
 		fmt.Println("!!", pkgManErr)
+		os.Exit(1)
 	}
 
 	// Print finishing time
