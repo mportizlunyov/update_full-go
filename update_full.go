@@ -1,6 +1,6 @@
 // Written by Mikhail P. Ortiz-Lunyov
 //
-// Version 0.0.9-beta
+// Version 0.0.10-beta
 //
 // This script is licensed under the GNU Public License v3 (GPLv3)
 // This script is cross platform.
@@ -26,8 +26,8 @@ const OS_TYPE string = runtime.GOOS
 
 // // Version numbers and names
 const DEV_CYCLE string = "-beta"
-const SHORT_VERSION_NUM string = "0.0.9"
-const VERSION_NAME string = "June 28th 2024"
+const SHORT_VERSION_NUM string = "0.0.10"
+const VERSION_NAME string = "May 8th 2025"
 const LONG_VERSION_NUM string = "v" + SHORT_VERSION_NUM + DEV_CYCLE + " (" + VERSION_NAME + ")"
 
 // // Number of package managers per type
